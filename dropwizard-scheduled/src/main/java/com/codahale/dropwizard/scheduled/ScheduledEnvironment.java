@@ -9,11 +9,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.dropwizard.lifecycle.Managed;
-import com.codahale.dropwizard.lifecycle.setup.LifecycleEnvironment;
 import com.google.common.base.Strings;
 
 public class ScheduledEnvironment implements Managed {
-  private static final Logger LOGGER = LoggerFactory.getLogger(LifecycleEnvironment.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ScheduledEnvironment.class);
   private final Scheduler scheduler;
   private final ScheduledTaskCollector taskCollector = new ScheduledTaskCollector();
 
@@ -24,22 +23,25 @@ public class ScheduledEnvironment implements Managed {
 
   public void schedule(final Object object) {
     for (final Method method : object.getClass().getMethods()) {
-      if (method.isAnnotationPresent(Scheduled.class) && method.getReturnType().equals(Void.TYPE) && method.getParameterTypes().length == 1
-          && method.getParameterTypes()[0].isAssignableFrom(TaskExecutionContext.class)) {
+      if (method.isAnnotationPresent(Scheduled.class)) {
+        if (method.getReturnType().equals(Void.TYPE) && method.getParameterTypes().length == 1
+            && method.getParameterTypes()[0].isAssignableFrom(TaskExecutionContext.class)) {
 
-        final Scheduled annotation = method.getAnnotation(Scheduled.class);
+          final Scheduled annotation = method.getAnnotation(Scheduled.class);
 
-        final String scheduledMethod = object.getClass().getSimpleName() + ":" + method.getName();
-        final String pattern = annotation.cronSchedule();
-        final String name = Strings.isNullOrEmpty(annotation.name()) ? scheduledMethod : annotation.name();
-        
-        this.taskCollector.addTask(pattern, new NamedTask(object, method, name));
+          final String scheduledMethod = object.getClass().getSimpleName() + ":" + method.getName();
+          final String pattern = annotation.cronSchedule();
+          final String name = Strings.isNullOrEmpty(annotation.name()) ? scheduledMethod : annotation.name();
 
-        LOGGER.info("scheduled method for invocation: " + scheduledMethod + " pattern:" + pattern);
+          this.taskCollector.addTask(pattern, new NamedTask(object, method, name));
+
+          LOGGER.info(String.format("scheduled method for invocation: %s (%s), pattern: %s", scheduledMethod, name, pattern));
+        }
+        else {
+          throw new RuntimeException("Invalid method signature! Scheduled methods should return void and take a 'TaskExecutionContext' parameter");
+        }
       }
-      else {
-        throw new RuntimeException("Invalid method signature! Scheduled methods should return void and take a 'TaskExecutionContext' parameter");
-      }
+
     }
   }
 
