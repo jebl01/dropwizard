@@ -1,19 +1,21 @@
 package com.codahale.dropwizard.setup;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import it.sauronsoftware.cron4j.Scheduler;
+
+import javax.validation.Validator;
+
 import com.codahale.dropwizard.jersey.DropwizardResourceConfig;
 import com.codahale.dropwizard.jersey.setup.JerseyContainerHolder;
 import com.codahale.dropwizard.jersey.setup.JerseyEnvironment;
 import com.codahale.dropwizard.jetty.MutableServletContextHandler;
 import com.codahale.dropwizard.jetty.setup.ServletEnvironment;
 import com.codahale.dropwizard.lifecycle.setup.LifecycleEnvironment;
+import com.codahale.dropwizard.scheduled.ScheduledEnvironment;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.health.HealthCheckRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.jersey.spi.container.servlet.ServletContainer;
-
-import javax.validation.Validator;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 // TODO: 5/15/13 <coda> -- add tests for Environment
 
@@ -35,7 +37,8 @@ public class Environment {
     private final ServletEnvironment servletEnvironment;
 
     private final LifecycleEnvironment lifecycleEnvironment;
-
+    private final ScheduledEnvironment scheduledEnvironment;
+    
     private final MutableServletContextHandler adminContext;
     private final AdminEnvironment adminEnvironment;
 
@@ -65,7 +68,9 @@ public class Environment {
         this.adminEnvironment = new AdminEnvironment(adminContext, healthCheckRegistry);
 
         this.lifecycleEnvironment = new LifecycleEnvironment();
-
+        this.scheduledEnvironment = new ScheduledEnvironment(new Scheduler());
+        this.lifecycleEnvironment.manage(this.scheduledEnvironment);
+        
         final DropwizardResourceConfig jerseyConfig = new DropwizardResourceConfig(metricRegistry);
         this.jerseyServletContainer = new JerseyContainerHolder(new ServletContainer(jerseyConfig));
         this.jerseyEnvironment = new JerseyEnvironment(jerseyServletContainer, jerseyConfig);
@@ -90,6 +95,13 @@ public class Environment {
      */
     public LifecycleEnvironment lifecycle() {
         return lifecycleEnvironment;
+    }
+
+    /**
+     * Returns the application's {@link ScheduledEnvironment}.
+     */
+    public ScheduledEnvironment scheduled() {
+      return scheduledEnvironment;
     }
 
     /**
